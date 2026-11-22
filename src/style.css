@@ -144,3 +144,9 @@ input[type=range] { width: 100%; accent-color: #0077FF; margin-top: 8px; }
 .cert::before { content: ''; position: absolute; inset: 6px; border: 1px dashed #9CC4FF; border-radius: 13px; pointer-events: none; }
 .seal { width: 64px; height: 64px; border-radius: 50%; background: #0077FF; color: #fff; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-weight: 900; font-size: 18px; }
 .toast { position: absolute; left: 16px; right: 16px; top: 110px; z-index: 40; background: rgba(0,0,0,.82); color: #fff; border-radius: 12px; padding: 12px 14px; font-size: 14px; animation: fade .2s; }
+.q { cursor: pointer; user-select: none; }
+.popov { position: absolute; inset: 0; z-index: 49; }
+.pop { position: absolute; z-index: 50; background: #fff; border-radius: 14px; box-shadow: 0 8px 30px rgba(0,0,0,.25), 0 0 0 .5px rgba(0,0,0,.08); padding: 12px 14px 12px; animation: fade .15s; color: #000; text-align: left; }
+.pop .pt { font-weight: 700; font-size: 15px; }
+.pop .px { font-size: 14px; line-height: 1.4; margin-top: 4px; color: #2C2D2E; font-weight: 400; text-transform: none; letter-spacing: 0; }
+.pop .pl { display: block; margin-top: 8px; font-size: 13.5px; font-weight: 600; color: #0077FF; line-height: 1.3; }

@@ -30,7 +30,7 @@ const I = {
 const candle = (w) => `<svg width="${w}" height="${Math.round(w * 1.15)}" viewBox="0 0 200 230"><use href="#candle"/></svg>`;
 const sb = (dark) => `<div class="sb${dark ? ' dark' : ''}"><span>9:41</span><span style="display:flex;gap:6px;align-items:center"><svg width="18" height="12" fill="currentColor"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg><svg width="26" height="12"><rect x=".5" y=".5" width="22" height="11" rx="3.5" fill="none" stroke="currentColor" opacity=".45"/><rect x="2.5" y="2.5" width="16" height="7" rx="2" fill="currentColor"/></svg></span></div>`;
 const nav = (t, sub, back, help) => `<div class="nav"><a class="nb blue" href="${back}" aria-label="Назад">${I.back}</a><div class="t">${t}${sub ? `<small>${sub}</small>` : ''}</div>${help ? `<button class="qb" data-help="${help}" aria-label="Обучение">?</button>` : '<span style="width:36px"></span>'}</div>`;
-const q = (help) => `<button class="q" data-help="${help}" aria-label="Обучение">?</button>`;
+const q = (k) => `<span class="q" role="button" tabindex="0" data-tip="${k}" aria-label="Подсказка">?</span>`;
 const nb = (s) => s.toLocaleString('ru-RU').replace(/ /g, ' ');
 
 // ---------- обложки курсов ----------
@@ -60,6 +60,64 @@ function openHelp(key) {
     <div style="margin-top:16px;display:flex;flex-direction:column;gap:8px"><a class="btn lg" href="#/academy?rec=${c.id}" data-act="closeSheet">Начать обучение</a><button class="btn sec" data-act="closeSheet">Не сейчас</button></div></div>`;
 }
 function closeSheet() { layer.innerHTML = ''; }
+// ---------- подсказки «?» у полей: 1–2 фразы + ссылка на урок ----------
+const TIPS = {
+  wiz0: ['Шаг 1 из 4. Товары', 'Проверяем товары, которые VK собрал из ваших клипов и постов. Снимите лишнее и проверьте цену.', 'card', 0],
+  wiz1: ['Шаг 2 из 4. Доставка', 'Выбираем, как покупатель получит заказ. Цену доставки VK посчитает сам по весу товара.', 'delivery', 0],
+  wiz2: ['Шаг 3 из 4. Оплата', 'Подключаем оплату внутри VK: покупатель платит прямо в карточке, а не переводом в сообщениях.', 'delivery', 2],
+  wiz3: ['Шаг 4 из 4. Готово', 'Товары, доставка и оплата подключены, карточки готовы к продаже. Следующий шаг — первая реклама.', 'ads', 0],
+  fromposts: ['Товары из публикаций', 'Если к клипу или посту прикреплён товар, он сам попадает в Магазин с фото и ценой из публикации.', 'card', 0],
+  pvz: ['Пункты выдачи', 'Почта России, СДЭК и Boxberry: вы сдаёте посылку в отделение, покупатель забирает рядом с домом. Тариф VK считает сам.', 'delivery', 0],
+  self: ['Самовывоз', 'Покупатель забирает заказ у вас по адресу из настроек сообщества. Доставка для него бесплатная.', 'delivery', 0],
+  courier: ['Своя курьерская доставка', 'Вы сами возите заказы по городу. Укажите зону и цену, покупатель увидит её в карточке.', 'delivery', 0],
+  weight: ['Вес в упаковке', 'Указывайте вес вместе с коробкой: по нему VK считает доставку. Свеча 200 мл в упаковке — около 450 г.', 'delivery', 1],
+  size: ['Габариты коробки', 'Длина, ширина и высота коробки в сантиметрах. Чем больше коробка, тем дороже доставка.', 'delivery', 1],
+  shipview: ['Что увидит покупатель', 'Минимальную цену доставки и срок прямо в карточке, ещё до оформления заказа.', 'card', 1],
+  vkpay: ['VK Pay', 'Платёжный сервис ВКонтакте: покупатель платит по СБП, картой или из VK Кошелька, не выходя из приложения.', 'delivery', 2],
+  guarantee: ['Гарантия сделки', 'Деньги покупателя хранятся в VK и приходят продавцу после того, как заказ получен. Поэтому покупатель не боится платить.', 'delivery', 2],
+  commission: ['Комиссия 5%', 'Берётся только с оплаченных заказов, всё включено: приём оплаты и гарантия. Нет заказов — нет комиссии.', 'delivery', 2],
+  payout: ['Счёт для выплат', 'Расчётный счёт или карта, куда VK переводит деньги за полученные заказы.', 'delivery', 2],
+  nextad: ['Первая реклама', 'Когда магазин готов, товар можно продвигать прямо из клипа. Курс покажет, как это сделать за 3 шага.', 'ads', 0],
+  shipcalc: ['Доставка от 199 ₽', 'Минимальная цена доставки до пункта выдачи рядом с вами. Точную сумму покажем при оформлении.', 'delivery', 0],
+  rating: ['Отзывы «купил в VK»', 'Их оставляют только те, кто оплатил и получил заказ в VK, поэтому им можно доверять.', 'reviews', 0],
+  pickup: ['Пункт выдачи · 3–5 дней', 'Срок, за который посылка дойдёт до пункта выдачи. Адрес выберете при оформлении.', 'delivery', 0],
+  total: ['Итого', 'Цена товара и доставки. Комиссию 5% платит продавец, для покупателя цена не меняется.', 'delivery', 2],
+  status: ['Статусы заказа', 'Показывают, где сейчас заказ. Продавец и покупатель видят одни и те же статусы.', 'reviews', 0],
+  release: ['Когда продавец получит деньги', 'Как только вы заберёте заказ. Если товар не пришёл, деньги вернутся вам.', 'delivery', 2],
+  askreview: ['Отзыв после покупки', 'Через 1–2 дня после получения VK попросит оценить товар. Отзыв увидят другие покупатели.', 'reviews', 0],
+  promo: ['Продвигать товар', 'Реклама товара прямо из клипа: объявление соберётся из публикации, нужно выбрать только цель и бюджет.', 'ads', 1],
+  autoad: ['Объявление из клипа', 'VK взял видео, текст и карточку товара из этого клипа. Рисовать баннер и писать текст не нужно.', 'ads', 1],
+  preview: ['Как увидят объявление', 'Так объявление появится в ленте и клипах у людей, похожих на ваших покупателей.', 'ads', 1],
+  goal: ['Цель', '«Заказы в VK» показывает рекламу тем, кто вероятнее купит, и считает результат в заказах. «Охват» считает только показы.', 'ads', 0],
+  audience: ['Аудитория', 'VK сам подбирает людей, похожих на тех, кто уже покупал такие товары. Настраивать интересы и возраст не нужно.', 'ads', 0],
+  bid: ['Ставка', 'Цену за показ VK подбирает автоматически в пределах бюджета. Разбираться в аукционе не нужно.', 'ads', 2],
+  budget: ['Бюджет', 'Сколько вы готовы потратить за 7 дней. Больше этой суммы не спишем, неизрасходованный остаток не тратится.', 'ads', 2],
+  forecast: ['Прогноз результата', 'Сколько заказов ожидать при таком бюджете. Считаем по продажам похожих товаров в VK, это оценка, а не гарантия.', 'ads', 2],
+  cpo: ['Цена заказа', 'Сколько рекламы приходится на один заказ: бюджет, делённый на число заказов. Сравните её с вашей наценкой.', 'stats', 2],
+  reach: ['Показы', 'Сколько раз объявление увидят. При цели «Охват» заказы не считаются.', 'ads', 0],
+  billing: ['Как списываются деньги', 'По мере показов и не больше бюджета. Остановить продвижение можно в любой момент.', 'ads', 2],
+  results: ['Когда ждать результат', 'Первые показы — через несколько часов, заказы обычно приходят в первые 1–3 дня. Всё видно в статистике.', 'stats', 0],
+  result: ['Результат продвижения', 'Сколько заказов оплачено после показа рекламы и сколько это стоило. Сравните с прогнозом.', 'stats', 0],
+  revenue: ['Выручка', 'Сумма оплаченных заказов из рекламы: 6 свечей по 1 290 ₽, без учёта доставки.', 'stats', 2],
+  funnel: ['Путь покупателя', 'Четыре шага от показа до оплаты. Где резкий провал, там и проблема: в публикации, карточке или оплате.', 'stats', 0],
+  impr: ['Показы', 'Сколько раз клип и пост с рекламой увидели в ленте.', 'stats', 0],
+  ctr: ['CTR', 'Доля тех, кто открыл карточку после показа: 212 из 18 400 ≈ 1,2%. Зависит от публикации: видео и первой строки текста.', 'stats', 0],
+  cr: ['Конверсия в покупку', 'Доля открывших карточку, кто нажал «Купить в VK»: 11 из 212 ≈ 5%. Зависит от цены, доставки и фото.', 'card', 1],
+  paid: ['Оплатили', 'Заказы, оплаченные через VK Pay. Только их считаем результатом рекламы.', 'stats', 0],
+  bypost: ['Какая публикация продала', 'Заказы и цена заказа по каждому клипу и посту. Продвигайте те, что продают дешевле.', 'stats', 1],
+  markup: ['Наценка', 'Сколько вы зарабатываете на одной продаже сверх себестоимости. Если цена заказа ниже наценки, реклама окупается.', 'stats', 2]
+};
+function openTip(el, key) {
+  const t = TIPS[key]; if (!t) return;
+  const [title, text, cid, li] = t, les = COURSES[cid].lessons[li];
+  layer.innerHTML = `<div class="popov" data-act="closeSheet"></div><div class="pop" role="dialog" aria-label="${title}"><div class="pt">${title}</div><div class="px">${text}</div><a class="pl" href="#/course/${cid}/${li}">Подробнее в курсе: «${les.title}» →</a></div>`;
+  const pop = layer.querySelector('.pop'), ar = app.getBoundingClientRect(), br = el.getBoundingClientRect();
+  const w = Math.min(300, ar.width - 24); pop.style.width = w + 'px';
+  let left = br.left - ar.left + br.width / 2 - w / 2; left = Math.max(12, Math.min(left, ar.width - w - 12));
+  const h = pop.offsetHeight; let top = br.bottom - ar.top + 8;
+  if (top + h > ar.height - 12) top = br.top - ar.top - h - 8;
+  pop.style.left = left + 'px'; pop.style.top = Math.max(12, top) + 'px';
+}
 function toast(t) { const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; app.appendChild(d); setTimeout(() => d.remove(), 2200); }
 
 // ---------- главная ----------
@@ -85,36 +143,36 @@ function Launch() {
   const st = S.step;
   const head = `${sb()}${nav('Запуск продаж', 'Тёплый воск', st ? '#/launch' : '#/', 'launch')}
     <div class="steps">${STEPS.map((s, i) => `<div><i class="${i <= st ? 'on' : ''}"></i><span class="${i === st ? 'on' : ''}">${s}</span></div>`).join('')}</div>
-    <div class="left">${st < 3 ? `Осталось ${3 - st} ${plural(3 - st, 'шаг', 'шага', 'шагов')} · около ${[10, 7, 4][st]} минут` : 'Готово к продажам'}</div>`;
+    <div class="left">${st < 3 ? `Осталось ${3 - st} ${plural(3 - st, 'шаг', 'шага', 'шагов')} · около ${[10, 7, 4][st]} минут` : 'Готово к продажам'}${q('wiz' + st)}</div>`;
   let body = '', foot = '';
   if (st === 0) {
     const items = [['Свеча «Хвоя», 200 мл', '1 290 ₽'], ['Свеча «Лаванда», 200 мл', '1 290 ₽'], ['Набор «Три аромата»', '3 490 ₽']];
-    body = `<div class="info"><b>12 товаров готовы.</b> Карточки собраны из ваших публикаций с фото и ценой. Проверьте и снимите лишнее.</div>
+    body = `<div class="info"><b>12 товаров готовы.</b>${q('fromposts')} Карточки собраны из ваших публикаций с фото и ценой. Проверьте и снимите лишнее.</div>
       <div class="grp">${items.map(([n, p]) => `<div class="cell"><div class="thumb">${candle(34)}</div><div class="l">${n}<div class="sub">${p} · из клипа</div></div><div class="chk on">${I.tick()}</div></div>`).join('')}
       <div class="cell"><div class="l blue">Ещё 9 товаров</div>${I.chev}</div></div>
       <div class="note">Товары, прикреплённые к клипам и постам, попадают в Магазин сообщества автоматически.</div>`;
     foot = `<button class="btn lg" data-act="step" data-v="1">Далее: доставка</button>`;
   } else if (st === 1) {
-    const ops = [['Пункты выдачи', 'Почта России, СДЭК, Boxberry. Тариф рассчитывается автоматически', true], ['Самовывоз', 'Адрес из настроек: ул. Садовая, 14', false], ['Своя курьерская доставка', 'Укажите зону и цену доставки по городу', false]];
+    const ops = [['Пункты выдачи', 'Почта России, СДЭК, Boxberry. Тариф рассчитывается автоматически', true, 'pvz'], ['Самовывоз', 'Адрес из настроек: ул. Садовая, 14', false, 'self'], ['Своя курьерская доставка', 'Укажите зону и цену доставки по городу', false, 'courier']];
     body = `<div style="padding:16px 16px 0;background:#fff"><h2>Как покупатели получат заказ?</h2><div class="gray" style="font-size:14px;margin-top:4px;padding-bottom:14px">Выберите хотя бы один способ. Стоимость доставки покупатель увидит в карточке товара</div></div>
-      <div class="grp">${ops.map(([t, s, r], i) => `<button class="cell" data-act="deliv" data-v="${i}"><div class="chk ${S.deliv[i] ? 'on' : ''}">${S.deliv[i] ? I.tick() : ''}</div><div class="l">${t}${r ? '<span class="rec">Рекомендуем</span>' : ''}<div class="sub">${s}</div></div></button>`).join('')}</div>
-      <div class="gh">Посылка ${q('weight')}</div>
-      <div class="grp" style="margin-top:4px"><div class="cell"><div class="l">Вес в упаковке</div><div class="v" style="color:#000">450 г</div></div><div class="cell"><div class="l">Габариты коробки</div><div class="v" style="color:#000">10 × 10 × 12 см</div></div></div>
-      <div class="info">Покупатель увидит: <b>доставка от 199 ₽ · 3–5 дней</b> в пункт выдачи рядом с домом.</div>`;
+      <div class="grp">${ops.map(([t, s, r, k], i) => `<button class="cell" data-act="deliv" data-v="${i}"><div class="chk ${S.deliv[i] ? 'on' : ''}">${S.deliv[i] ? I.tick() : ''}</div><div class="l">${t}${q(k)}${r ? '<span class="rec">Рекомендуем</span>' : ''}<div class="sub">${s}</div></div></button>`).join('')}</div>
+      <div class="gh">Посылка</div>
+      <div class="grp" style="margin-top:4px"><div class="cell"><div class="l">Вес в упаковке${q('weight')}</div><div class="v" style="color:#000">450 г</div></div><div class="cell"><div class="l">Габариты коробки${q('size')}</div><div class="v" style="color:#000">10 × 10 × 12 см</div></div></div>
+      <div class="info">Покупатель увидит${q('shipview')}: <b>доставка от 199 ₽ · 3–5 дней</b> в пункт выдачи рядом с домом.</div>`;
     foot = `<button class="btn lg" data-act="step" data-v="2">Далее: оплата</button>`;
   } else if (st === 2) {
     const pays = ['СБП', 'Карта', 'VK Кошелёк'];
-    body = `<div style="padding:16px 16px 14px;background:#fff"><h2 style="display:flex;align-items:center">Принимайте оплату в VK ${q('pay')}</h2><div class="gray" style="font-size:14px;margin-top:4px">Покупатель платит через VK Pay, не выходя из ВКонтакте</div>
+    body = `<div style="padding:16px 16px 14px;background:#fff"><h2 style="display:flex;align-items:center">Принимайте оплату в VK ${q('vkpay')}</h2><div class="gray" style="font-size:14px;margin-top:4px">Покупатель платит через VK Pay, не выходя из ВКонтакте</div>
       <div style="display:flex;gap:6px;margin-top:12px">${pays.map(p => `<span class="pill">${p}</span>`).join('')}</div></div>
-      <div class="grp"><div class="cell" style="align-items:flex-start;padding-top:4px">${'<div style="padding-top:12px">' + I.shield + '</div>'}<div class="l"><b>Гарантия сделки</b><div class="sub">Деньги приходят вам после того, как покупатель получил заказ. Покупатели спокойнее платят незнакомому продавцу</div></div></div>
-      <div class="cell"><div class="l">Комиссия</div><div class="v" style="color:#000">5% с оплаченного заказа</div></div>
-      <div class="cell"><div class="l">Счёт для выплат</div><div class="v">Указать ${I.chev}</div></div></div>
+      <div class="grp"><div class="cell" style="align-items:flex-start;padding-top:4px">${'<div style="padding-top:12px">' + I.shield + '</div>'}<div class="l"><b>Гарантия сделки</b>${q('guarantee')}<div class="sub">Деньги приходят вам после того, как покупатель получил заказ. Покупатели спокойнее платят незнакомому продавцу</div></div></div>
+      <div class="cell"><div class="l">Комиссия${q('commission')}</div><div class="v" style="color:#000">5% с оплаченного заказа</div></div>
+      <div class="cell"><div class="l">Счёт для выплат${q('payout')}</div><div class="v">Указать ${I.chev}</div></div></div>
       <div class="note">В прототипе ничего не подключается и не списывается.</div>`;
     foot = `<button class="btn lg" data-act="step" data-v="3">Подключить оплату</button>`;
   } else {
     body = `<div style="background:#fff;padding-bottom:20px;text-align:center"><div class="donebig">${I.tick('#fff', 44)}</div><h2 style="margin-top:14px">Магазин готов к продажам</h2><div class="gray" style="font-size:14px;margin:6px 24px 0">Теперь в карточках есть цена с доставкой и кнопка «Купить в VK»</div></div>
       <div class="grp">${['12 товаров из публикаций', 'Доставка: пункты выдачи и самовывоз', 'Оплата VK Pay с гарантией сделки'].map(t => `<div class="cell"><div class="ok-dot">${I.tick('#fff', 14)}</div><div class="l">${t}</div></div>`).join('')}</div>
-      <div class="grp"><a class="cell" href="#/academy?rec=ads"><div style="padding:10px 0">${I.cap}</div><div class="l"><b>Следующий шаг: первая реклама</b><div class="sub">Курс «Реклама товара за 3 шага» · 12 минут</div></div>${I.chev}</a></div>`;
+      <div class="grp"><a class="cell" href="#/academy?rec=ads"><div style="padding:10px 0">${I.cap}</div><div class="l"><b>Следующий шаг: первая реклама</b>${q('nextad')}<div class="sub">Курс «Реклама товара за 3 шага» · 12 минут</div></div>${I.chev}</a></div>`;
     foot = `<a class="btn lg" href="#/product">Посмотреть карточку товара</a><a class="btn sec" href="#/promote">Продвигать товар из клипа</a>`;
   }
   return `${head}<div class="body">${body}<div style="height:16px"></div></div><div class="foot">${foot}</div>`;
@@ -127,20 +185,20 @@ function Product() {
   if (S.checkout) sheet = `<div class="ov" data-act="checkout" data-v="0"></div><div class="sheet"><div class="grab"></div>
     <div style="display:flex;justify-content:space-between;align-items:center"><h2>Оформление заказа</h2><button class="nb gray" data-act="checkout" data-v="0" aria-label="Закрыть">${I.close}</button></div>
     <div style="display:flex;gap:12px;align-items:center;margin-top:10px"><div class="thumb">${candle(34)}</div><div style="flex:1"><b>Свеча «Хвоя», 200 мл</b><div class="sub">Тёплый воск · 1 шт.</div></div><b>1 290 ₽</b></div>
-    <div class="gh" style="padding-left:0">Доставка</div>
+    <div class="gh" style="padding-left:0">Доставка${q('pvz')}</div>
     <div style="display:flex;gap:10px;align-items:center">${I.box}<div style="flex:1;font-size:15px">Пункт выдачи СДЭК, ул. Ленина, 8<div class="sub">3–5 дней</div></div><b>199 ₽</b></div>
-    <div class="gh" style="padding-left:0">Оплата VK Pay</div>
+    <div class="gh" style="padding-left:0">Оплата VK Pay${q('vkpay')}</div>
     <div style="display:flex;gap:6px">${pays.map((p, i) => `<button class="pill ${S.pay === i ? 'on' : ''}" data-act="pay" data-v="${i}">${p}</button>`).join('')}</div>
     <div style="display:flex;gap:10px;align-items:flex-start;margin-top:14px;background:#F5F9FF;border-radius:12px;padding:10px 12px">${I.shield}<div style="font-size:13.5px;line-height:1.35"><b>Гарантия сделки</b>${q('guarantee')}<br>Продавец получит деньги после того, как вы заберёте заказ</div></div>
-    <div style="display:flex;justify-content:space-between;margin-top:14px;font-size:17px"><b>Итого</b><b>1 489 ₽</b></div>
+    <div style="display:flex;justify-content:space-between;margin-top:14px;font-size:17px"><b style="display:flex;align-items:center">Итого${q('total')}</b><b>1 489 ₽</b></div>
     <a class="btn lg" style="margin-top:12px" href="#/done">Оплатить 1 489 ₽</a></div>`;
   return `${sb()}${nav('Товар', 'Тёплый воск', '#/', 'product')}<div class="body" style="background:#fff">
     <div class="prod-img">${candle(200)}<div class="dots"><i></i><i></i><i></i><i></i></div></div>
-    <div style="padding:14px 16px 0"><div style="display:flex;align-items:baseline;gap:8px"><span class="price">1 290 ₽</span><span class="gray" style="font-size:14px">+ доставка от 199 ₽</span></div>
+    <div style="padding:14px 16px 0"><div style="display:flex;align-items:baseline;gap:8px"><span class="price">1 290 ₽</span><span class="gray" style="font-size:14px">+ доставка от 199 ₽${q('shipcalc')}</span></div>
       <div style="font-size:17px;margin-top:4px">Свеча из соевого воска «Хвоя», 200 мл</div>
-      <button style="display:flex;gap:4px;align-items:center;margin-top:6px;font-size:14px" data-help="reviews">${I.star}<b>4,9</b><span class="gray">· 37 отзывов «купил в VK»</span><span class="q">?</span></button></div>
-    <div class="grp" style="margin:12px 16px 0;background:#F5F9FF"><div class="cell" style="padding:0 12px">${I.shield}<div class="l" style="font-size:14px"><b>Гарантия сделки VK.</b> Продавец получит деньги, когда вы заберёте заказ</div></div></div>
-    <div class="grp" style="margin:8px 16px 0;background:#F5F6F8"><div class="cell" style="padding:0 12px">${I.box}<div class="l" style="font-size:14px">Пункт выдачи · 3–5 дней</div><div class="v" style="color:#000;font-weight:600">199 ₽</div></div></div>
+      <div style="display:flex;gap:4px;align-items:center;margin-top:6px;font-size:14px">${I.star}<b>4,9</b><span class="gray">· 37 отзывов «купил в VK»</span>${q('rating')}</div></div>
+    <div class="grp" style="margin:12px 16px 0;background:#F5F9FF"><div class="cell" style="padding:0 12px">${I.shield}<div class="l" style="font-size:14px"><b>Гарантия сделки VK.</b>${q('guarantee')} Продавец получит деньги, когда вы заберёте заказ</div></div></div>
+    <div class="grp" style="margin:8px 16px 0;background:#F5F6F8"><div class="cell" style="padding:0 12px">${I.box}<div class="l" style="font-size:14px">Пункт выдачи · 3–5 дней${q('pickup')}</div><div class="v" style="color:#000;font-weight:600">199 ₽</div></div></div>
     <div class="gh">Описание</div><div style="padding:0 16px;font-size:15px;line-height:1.4">Ручная работа, хлопковый фитиль, время горения около 40 часов. Аромат хвои и кедра.</div>
     <div style="height:20px"></div></div>
     <div class="foot" style="flex-direction:row;align-items:center"><button class="ib" data-act="toast" data-v="Откроется чат с продавцом">${I.msg}</button><button class="ib" data-act="toast" data-v="Товар добавлен в корзину">${I.cart}</button><button class="btn lg" style="flex:1;flex-direction:column;gap:0;line-height:1.15" data-act="checkout" data-v="1">Купить в VK<span style="font-size:12px;font-weight:500;opacity:.85">1 489 ₽ с доставкой</span></button></div>${sheet}`;
@@ -149,8 +207,8 @@ function Done() {
   const st = [['Оплачен через VK Pay', true], ['Передан в доставку', false], ['В пункте выдачи', false], ['Получен — деньги уйдут продавцу', false]];
   return `${sb()}${nav('Заказ № 4821', 'Тёплый воск', '#/product', 'done')}<div class="body">
     <div style="background:#fff;padding-bottom:18px;text-align:center"><div class="donebig">${I.tick('#fff', 44)}</div><h2 style="margin-top:14px">Заказ оплачен</h2><div class="gray" style="font-size:14px;margin:6px 28px 0">1 489 ₽ · продавец получит деньги после того, как вы заберёте заказ</div></div>
-    <div class="gh">Статус</div><div class="grp" style="margin-top:4px">${st.map(([t, d]) => `<div class="cell">${d ? `<div class="ok-dot">${I.tick('#fff', 14)}</div>` : '<div class="num-dot"></div>'}<div class="l ${d ? '' : 'gray'}">${t}</div></div>`).join('')}</div>
-    <div class="note">После получения мы попросим оставить отзыв «купил в VK» ${q('reviews')}</div></div>
+    <div class="gh">Статус${q('status')}</div><div class="grp" style="margin-top:4px">${st.map(([t, d], i) => `<div class="cell">${d ? `<div class="ok-dot">${I.tick('#fff', 14)}</div>` : '<div class="num-dot"></div>'}<div class="l ${d ? '' : 'gray'}">${t}${i === 3 ? q('release') : ''}</div></div>`).join('')}</div>
+    <div class="note">После получения мы попросим оставить отзыв «купил в VK» ${q('askreview')}</div></div>
     <div class="foot"><a class="btn lg" href="#/">На главную</a><a class="btn sec" href="#/product">Вернуться к товару</a></div>`;
 }
 
@@ -160,26 +218,27 @@ function Promote() {
   const { lo, hi } = fc(S.budget);
   let sheet = '';
   if (S.promo === 1) sheet = `<div class="sheet" style="max-height:none"><div class="grab"></div>
-    <div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:19px;font-weight:700">Продвигать товар</div><span class="gray" style="font-size:13px;font-weight:600">Шаг 1 из 3</span></div>
-    <div style="margin-top:12px;display:flex;gap:12px;align-items:center;background:#F5F9FF;border-radius:12px;padding:10px"><div class="thumb">${candle(34)}</div><div style="flex:1;font-size:14px"><b>Свеча «Хвоя» · 1 290 ₽</b><div class="gray" style="font-size:13px">Объявление собрано из этого клипа</div></div>${I.tick('#4BB34B', 22)}</div>
-    <div class="gh" style="padding-left:0">Как увидят объявление</div>
+    <div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:19px;font-weight:700;display:flex;align-items:center">Продвигать товар${q('promo')}</div><span class="gray" style="font-size:13px;font-weight:600">Шаг 1 из 3</span></div>
+    <div style="margin-top:12px;display:flex;gap:12px;align-items:center;background:#F5F9FF;border-radius:12px;padding:10px"><div class="thumb">${candle(34)}</div><div style="flex:1;font-size:14px"><b>Свеча «Хвоя» · 1 290 ₽</b><div class="gray" style="font-size:13px">Объявление собрано из этого клипа${q('autoad')}</div></div>${I.tick('#4BB34B', 22)}</div>
+    <div class="gh" style="padding-left:0">Как увидят объявление${q('preview')}</div>
     <div style="border-radius:12px;background:#1E2E25;color:#fff;padding:12px;font-size:13.5px;display:flex;gap:10px;align-items:center"><div style="width:44px;height:58px;border-radius:8px;background:#3B5A47;display:flex;align-items:center;justify-content:center">${candle(30)}</div><div style="flex:1">Варим свечи вручную: Хвоя и кедр, 40 часов горения<div style="opacity:.7;margin-top:2px">Реклама · Тёплый воск</div></div></div>
     <button class="btn lg" style="margin-top:14px" data-act="promo" data-v="2">Далее: цель и бюджет</button></div>`;
   if (S.promo === 2) sheet = `<div class="sheet" style="max-height:none"><div class="grab"></div>
     <div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:19px;font-weight:700">Продвигать товар</div><span class="gray" style="font-size:13px;font-weight:600">Шаг 2 из 3</span></div>
     <div class="gh" style="padding-left:0">Цель ${q('goal')}</div>
     <div class="seg"><button class="${S.goal === 0 ? 'on' : ''}" data-act="goal" data-v="0">Заказы в VK</button><button class="${S.goal === 1 ? 'on' : ''}" data-act="goal" data-v="1">Охват</button></div>
+    <div class="grp" style="margin:12px 0 0;background:#F5F6F8"><div class="cell"><div class="l">Аудитория${q('audience')}</div><div class="v">Похожие на покупателей</div></div><div class="cell"><div class="l">Ставка${q('bid')}</div><div class="v">Автоматически</div></div></div>
     <div style="display:flex;justify-content:space-between;align-items:center;font-size:15px;margin-top:16px"><b style="display:flex;align-items:center">Бюджет ${q('budget')}</b><span><b class="bud">${nb(S.budget)} ₽</b> <span class="gray">за 7 дней</span></span></div>
     <input type="range" min="1000" max="10000" step="500" value="${S.budget}" data-inp="budget" aria-label="Бюджет">
     <div class="gray" style="display:flex;justify-content:space-between;font-size:12px"><span>1 000 ₽</span><span>10 000 ₽</span></div>
-    ${S.goal === 0 ? `<div class="fc"><div class="a">Прогноз результата</div><div class="b"><span class="fco">${lo}–${hi}</span> заказов</div><div class="c">≈ 430–750 ₽ за заказ · по продажам похожих товаров в VK</div></div>` : `<div class="fc" style="background:#F2F3F5;color:#000"><div class="a">Прогноз результата</div><div class="b">≈ ${nb(S.budget * 6)} показов</div><div class="c gray">Заказы при цели «Охват» не считаются</div></div>`}
+    ${S.goal === 0 ? `<div class="fc"><div class="a">Прогноз результата${q('forecast')}</div><div class="b"><span class="fco">${lo}–${hi}</span> заказов</div><div class="c">≈ 430–750 ₽ за заказ${q('cpo')} · по продажам похожих товаров в VK</div></div>` : `<div class="fc" style="background:#F2F3F5;color:#000"><div class="a">Прогноз результата${q('reach')}</div><div class="b">≈ ${nb(S.budget * 6)} показов</div><div class="c gray">Заказы при цели «Охват» не считаются</div></div>`}
     <button class="btn lg" style="margin-top:14px" data-act="promo" data-v="3">Далее: запуск</button></div>`;
   if (S.promo === 3) sheet = `<div class="sheet" style="max-height:none"><div class="grab"></div>
     <div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:19px;font-weight:700">Проверьте и запустите</div><span class="gray" style="font-size:13px;font-weight:600">Шаг 3 из 3</span></div>
-    <div class="grp" style="margin:12px 0 0;background:#F5F6F8">${[['Товар', 'Свеча «Хвоя»'], ['Цель', S.goal ? 'Охват' : 'Заказы в VK'], ['Бюджет', nb(S.budget) + ' ₽ за 7 дней'], ['Прогноз', S.goal ? '≈ ' + nb(S.budget * 6) + ' показов' : `${lo}–${hi} заказов`]].map(([a, b]) => `<div class="cell"><div class="l gray">${a}</div><div class="v" style="color:#000;font-weight:600">${b}</div></div>`).join('')}</div>
+    <div class="grp" style="margin:12px 0 0;background:#F5F6F8">${[['Товар', 'Свеча «Хвоя»', 'autoad'], ['Цель', S.goal ? 'Охват' : 'Заказы в VK', 'goal'], ['Бюджет', nb(S.budget) + ' ₽ за 7 дней', 'billing'], ['Прогноз', S.goal ? '≈ ' + nb(S.budget * 6) + ' показов' : `${lo}–${hi} заказов`, 'forecast']].map(([a, b, k]) => `<div class="cell"><div class="l gray">${a}${q(k)}</div><div class="v" style="color:#000;font-weight:600">${b}</div></div>`).join('')}</div>
     <div class="note" style="padding:10px 4px 0">Заказы появятся в статистике «публикация → заказ». В прототипе деньги не списываются.</div>
     <button class="btn lg" style="margin-top:14px" data-act="launch">Запустить за ${nb(S.budget)} ₽</button></div>`;
-  if (S.launched) sheet = `<div class="sheet" style="max-height:none;text-align:center"><div class="grab"></div><div class="donebig" style="margin-top:10px">${I.tick('#fff', 44)}</div><h2 style="margin-top:14px">Продвижение запущено</h2><div class="gray" style="font-size:14px;margin:6px 10px 0">Первые результаты — через несколько часов. Заказы будут видны по каждой публикации</div>
+  if (S.launched) sheet = `<div class="sheet" style="max-height:none;text-align:center"><div class="grab"></div><div class="donebig" style="margin-top:10px">${I.tick('#fff', 44)}</div><h2 style="margin-top:14px">Продвижение запущено</h2><div class="gray" style="font-size:14px;margin:6px 10px 0">Первые результаты — через несколько часов. Заказы будут видны по каждой публикации${q('results')}</div>
     <a class="btn lg" style="margin-top:16px" href="#/stats">Смотреть статистику</a><button class="btn sec" style="margin-top:8px" data-act="unlaunch">Вернуться к клипу</button></div>`;
   const ov = (S.promo || S.launched) ? `<div class="ov" style="z-index:5" data-act="promo" data-v="0"></div>` : '';
   return `<div class="view" style="background:#111"><div class="clip"></div>
@@ -189,19 +248,19 @@ function Promote() {
     <div style="position:absolute;left:14px;right:70px;bottom:160px;color:#fff;font-size:14px;line-height:1.35"><b>Тёплый воск</b><br>Варим свечи вручную: Хвоя и кедр, 40 часов горения</div>
     <div style="position:absolute;left:12px;right:12px;bottom:28px;display:flex;flex-direction:column;gap:8px">
       <div style="display:flex;gap:10px;align-items:center;background:rgba(255,255,255,.95);border-radius:12px;padding:8px"><div class="thumb" style="width:40px;height:40px">${candle(26)}</div><div style="flex:1;font-size:14px"><b>Свеча «Хвоя»</b><div class="gray" style="font-size:13px">1 290 ₽ · купить в VK</div></div><a href="#/product" class="pill" style="background:#0077FF;color:#fff">Купить</a></div>
-      <button class="btn lg" data-act="promo" data-v="1">Продвигать товар</button></div>
+      <button class="btn lg" data-act="promo" data-v="1">Продвигать товар${q('promo')}</button></div>
     ${ov}${sheet}</div>`;
 }
 
 // ---------- К4: статистика ----------
 function Stats() {
-  const rows = [['Показы клипа и поста', '18 400', 100], ['Открыли карточку товара', '212', 46], ['Нажали «Купить в VK»', '11', 18], ['Оплатили заказ', '6', 10]];
+  const rows = [['Показы клипа и поста', '18 400', 100, 'impr', ''], ['Открыли карточку товара', '212', 46, 'ctr', 'CTR 1,2% от показов'], ['Нажали «Купить в VK»', '11', 18, 'cr', '5,2% от открывших карточку'], ['Оплатили заказ', '6', 10, 'paid', '55% от нажавших «Купить»']];
   return `${sb()}${nav('Публикация → заказ', 'Свеча «Хвоя» · 7 дней', '#/', 'stats')}<div class="body" style="background:#fff">
-    <div class="fc" style="margin:12px 16px 0"><div class="a">Результат продвижения</div><div style="display:flex;align-items:baseline;gap:10px"><div class="b">6 заказов</div><div style="font-size:14px;opacity:.9">прогноз был 4–7</div></div><div class="c">500 ₽ за заказ · потрачено 3 000 ₽ · выручка 7 740 ₽</div></div>
-    <div class="gh">Путь покупателя</div><div class="funnel" style="padding:0 16px">${rows.map(([a, b, w], i) => `<div class="r"><span>${a}</span><b class="${i === 3 ? 'green' : ''}">${b}</b></div><div class="b" style="width:${w}%;${i === 3 ? 'background:#4BB34B' : `opacity:${1 - i * .15}`}"></div>`).join('')}</div>
-    <div class="gh">Какая публикация продала</div>
+    <div class="fc" style="margin:12px 16px 0"><div class="a">Результат продвижения${q('result')}</div><div style="display:flex;align-items:baseline;gap:10px"><div class="b">6 заказов</div><div style="font-size:14px;opacity:.9">прогноз был 4–7${q('forecast')}</div></div><div class="c">500 ₽ за заказ${q('cpo')} · потрачено 3 000 ₽ · выручка 7 740 ₽${q('revenue')}</div></div>
+    <div class="gh">Путь покупателя${q('funnel')}</div><div class="funnel" style="padding:0 16px">${rows.map(([a, b, w, k, sub], i) => `<div class="r"><span>${a}${q(k)}${sub ? `<span class="sub" style="display:block">${sub}</span>` : ''}</span><b class="${i === 3 ? 'green' : ''}">${b}</b></div><div class="b" style="width:${w}%;${i === 3 ? 'background:#4BB34B' : `opacity:${1 - i * .15}`}"></div>`).join('')}</div>
+    <div class="gh">Какая публикация продала${q('bypost')}</div>
     <div class="grp" style="background:#F5F6F8">${[['Клип «Как мы варим свечи»', '4 заказа · 430 ₽'], ['Пост «Новая коллекция»', '2 заказа · 640 ₽']].map(([a, b]) => `<div class="cell"><div class="l">${a}</div><div class="v" style="color:#000;font-weight:600">${b}</div></div>`).join('')}</div>
-    <div class="info">Совет: цена заказа из клипа ниже вашей наценки — продлите продвижение клипа.</div><div style="height:16px"></div></div>
+    <div class="info">Совет: цена заказа из клипа ниже вашей наценки${q('markup')} — продлите продвижение клипа.</div><div style="height:16px"></div></div>
     <div class="foot"><a class="btn lg" href="#/promote">Продвигать клип ещё 7 дней</a></div>`;
 }
 
@@ -362,8 +421,13 @@ const ACT = {
     if (score >= c.final.length - 1) { store.passed[k] = true; save(); } render(true); }
 };
 document.addEventListener('click', (e) => {
+  const tp = e.target.closest('[data-tip]'); if (tp) { e.preventDefault(); e.stopPropagation(); openTip(tp, tp.dataset.tip); return; }
   const h = e.target.closest('[data-help]'); if (h) { e.preventDefault(); openHelp(h.dataset.help); return; }
   const a = e.target.closest('[data-act]'); if (a && ACT[a.dataset.act]) { if (a.tagName !== 'A' || a.dataset.act !== 'closeSheet') e.preventDefault(); ACT[a.dataset.act](a); }
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeSheet();
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.dataset && e.target.dataset.tip) { e.preventDefault(); openTip(e.target, e.target.dataset.tip); }
 });
 document.addEventListener('input', (e) => {
   const k = e.target.dataset.inp; if (!k) return;
